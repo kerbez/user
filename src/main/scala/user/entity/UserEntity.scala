@@ -12,17 +12,17 @@ import user.model.{State, UserData, UserEvent, UserStatus}
 
 object UserEntity {
   def props = Props(new UserEntity())
-//
-//  val idExtractor: ShardRegion.ExtractEntityId = {
-//    case cmd: UserCommand => (cmd.userId, cmd)
-//  }
-//
-//  val shardResolver: ShardRegion.ExtractShardId = {
-//    case cmd: UserCommand =>
-//      (math.abs(cmd.userId.hashCode) % 100).toString
-//  }
-//
-//  val shardName: String = "UserShard"
+
+  val idExtractor: ShardRegion.ExtractEntityId = {
+    case cmd: UserCommand => (cmd.userId, cmd)
+  }
+
+  val shardResolver: ShardRegion.ExtractShardId = {
+    case cmd: UserCommand =>
+      (math.abs(cmd.userId.hashCode) % 100).toString
+  }
+
+  val shardName: String = "UserShard"
 }
 
 class UserEntity() extends Actor {
