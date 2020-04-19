@@ -1,10 +1,16 @@
 package user.commands
 
-sealed trait UserCommand
+sealed trait UserCommand {
+
+  type Identifier = String
+
+  def userId: Identifier
+
+}
 
 object UserCommand {
-  case class CreateClient(id: String, userName: String, mobile: String, password: String) extends UserCommand
-  case class UpdateClient() extends UserCommand
-  case class DeleteClient() extends UserCommand
-  case class CreateAdmin() extends UserCommand
+  case class CreateClientCommand(userId: String, userName: String, mobile: String, password: String) extends UserCommand
+  case class UpdateClientCommand(userId: String, userName: String, mobile: String, password: String) extends UserCommand
+  case class DeleteClientCommand(userId: String, userName: String, mobile: String, password: String) extends UserCommand
+  case class CreateAdminCommand(userId: String, userName: String, mobile: String, password: String) extends UserCommand
 }

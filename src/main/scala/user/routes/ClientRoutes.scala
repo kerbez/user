@@ -1,30 +1,57 @@
 package user.routes
 
-import akka.actor.ActorRef
+import akka.actor.{ActorRef, Props}
 import akka.http.scaladsl.Http
 import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 import akka.http.scaladsl.server.Route
 import akka.http.scaladsl.server.Directives._
+import user.{CreateAdmin, CreateClient, DeleteClient, RestMessage, UpdateClient}
 
-trait ClientRoutes {
-  def someActor: ActorRef
+trait ClientRoutes extends BaseRoute {
+  def someProps: Props
 
+  //
   lazy val route = Route {
-    pathPrefix("hi"){
-      concat(
-        path("world"){
-          get{
-//            implicit val timeout: Timeout = 5.seconds
-//
-//            // query the actor for the current auction state
-//            val bids: Future[Bids] = (auction ? GetBids).mapTo[Bids]
-//            complete(bids)
-
-            complete(HttpEntity(ContentTypes.`text/html(UTF-8)`, "<html><body>Hello world!</body></html>"))
+    concat(
+      pathPrefix("create"){
+        concat(
+          path("client"){
+            entity(as[CreateClient]){ entity =>
+              post{
+                work{entity}
+              }
+            }
+          }
+          ,
+          path("admin"){
+            entity(as[CreateAdmin]){ entity =>
+              post{
+                work{entity}
+              }
+            }
+          }
+        )
+      }
+      ,
+      pathPrefix("update"){
+        entity(as[UpdateClient]){ entity =>
+          post{
+            work{entity}
           }
         }
-      )
-    }
+      },
+      pathPrefix("delete"){
+        entity(as[DeleteClient]){ entity =>
+          post{
+            work{entity}
+          }
+        }
+      }
+    )
+  }
+
+  def work(cmd: RestMessage) = {
+    handleRequest(someProps, cmd)
   }
 
 
