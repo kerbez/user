@@ -5,12 +5,8 @@ import java.util.concurrent.TimeUnit
 import akka.actor.{ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
+import akka.event.Logging
 import akka.http.scaladsl.Http
-import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.management.scaladsl.AkkaManagement
-//import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
-//import akka.management.cluster.bootstrap.ClusterBootstrap
-//import akka.management.scaladsl.AkkaManagement
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 import user.entity.UserEntity
@@ -21,10 +17,8 @@ import scala.concurrent.{Await, ExecutionContextExecutor, Promise}
 import scala.io.StdIn
 import scala.sys.ShutdownHookThread
 import scala.util.Try
-//import org.slf4j.{Logger, LoggerFactory}
 
-object Boot extends App with ClientRoutes{
-//  val log: Logger = LoggerFactory.getLogger("Boot")
+object Boot extends App with ClientRoutes {
 
   val config = ConfigFactory.load()
 //  val clusterName = config.getString("akka.management.cluster.bootstrap.contact-point-discovery.service-name")
@@ -32,6 +26,10 @@ object Boot extends App with ClientRoutes{
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
+//  val log = Logging(system, this)
+//  val log = Logging(system, this)
+
+//  log.info("hi")
 
 
   val cluster = Cluster.get(system)
@@ -62,7 +60,7 @@ object Boot extends App with ClientRoutes{
 //        .onComplete(_ => system.terminate()) // and shutdown when done
 
   cluster.registerOnMemberUp {
-    val serverSource = Http().bind(interface = "localhost", port = 8080)
+//    val serverSource = Http().bind(interface = "localhost", port = 8080)
 
     val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
     println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")

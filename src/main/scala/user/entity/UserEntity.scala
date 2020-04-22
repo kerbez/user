@@ -2,12 +2,14 @@ package user.entity
 
 import akka.actor.{Actor, Props}
 import akka.cluster.sharding.ShardRegion
+import akka.event.{Logging, LoggingAdapter}
 import akka.http.scaladsl.model.DateTime
 import akka.persistence.{PersistentActor, RecoveryCompleted, SnapshotOffer}
 import user.CreateClient
 import user.commands.UserCommand
 import user.commands.UserCommand.CreateClientCommand
-import user.model.UserEvent.{UserCreatedEvent, UserDeletedEvent, UserUpdatedEvent}
+import user.model.UserApplication.ClientApplication
+import user.model.UserEvent.{ClientCreatedEvent, UserDeletedEvent, UserUpdatedEvent}
 import user.model.{State, UserData, UserEvent, UserStatus}
 
 object UserEntity {
@@ -25,66 +27,56 @@ object UserEntity {
   val shardName: String = "UserShard"
 }
 
-class UserEntity() extends Actor {
+class UserEntity() extends PersistentActor {
 
-  def updateState(event: UserEvent) = {
-    event match {
-      case evt: UserCreatedEvent =>
-        state = state.copy(
-          data = state.data.copy(
-            id = evt.id,
-            application = state.data.application
-          ),
-          status = UserStatus.CREATED,
-          timestamp = evt.timestamp
-        )
-      case evt: UserUpdatedEvent =>
-        state = state.copy(
-          data = state.data.copy(
-            application = evt.userApplication),
-          status = UserStatus.UPDATED
-        )
-      case evt: UserDeletedEvent =>
-        state = state.copy(
-          status = UserStatus.DELETED,
-          timestamp = evt.timestamp
-        )
-    }
-  }
+  val log: LoggingAdapter = Logging(context.system, this)
 
-  var state: State = State.empty()
+  override def persistenceId: String = self.path.name
+
+  var state: State = State(UserData(persistenceId, ClientApplication(persistenceId,"","", "", "", 0)), UserStatus.INIT, DateTime.now)
 
   val receiveRecover: Receive = {
     case RecoveryCompleted =>
       state.status match {
-        case UserStatus.INIT => context.become(receive)
-//        case UserStatus.CREATED => context.become(created)
-//        case UserStatus.UPDATED => context.become(updated)
-//        case UserStatus.DELETED => context.become(deleted)
+        case UserStatus.INIT => context.become(init)
+        case UserStatus.CREATED => context.become(created)
+        case UserStatus.UPDATED => context.become(updated)
+        case UserStatus.DELETED => context.become(deleted)
       }
     case evt: UserEvent  =>
-      updateState(evt)
+      state.updateState(evt)
   }
 
-//  override def receiveCommand: Receive = init
+  override def receiveCommand: Receive = init
 
-  def receive: Receive = {
+  def init: Receive = {
     case cmd: CreateClientCommand =>
-      println(s"Got cmd: $cmd")
-      val event = UserCreatedEvent(cmd.userId, cmd.userName, cmd.mobile, cmd.password, DateTime.now)
-      sender() ! "created"
+      log.info(s"[init] Got CreateClientCommand: $cmd")
+      val event = ClientCreatedEvent(cmd.userId, cmd.userName, cmd.mobile, cmd.password, DateTime.now)
+
+      persist(event){ evt =>
+        log.info(s"Event persisted: $evt")
+        state = state.updateState(event)
+        log.info(s"new state after persistence: $state")
+        sender() ! "created"
+        context.become(created)
+      }
     case any =>
+      log.info(s"Got any: $any")
       println(s"Got any $any")
 
   }
-//  def created: Receive = {
-//
-//  }
-//  def updated: Receive = {
-//
-//  }
-//  def deleted: Receive = {
-//
-//  }
+  def created: Receive = {
+    case any=>
+      log.info(s"[created] Got any: $any")
+  }
+  def updated: Receive = {
+    case any=>
+      log.info(s"[updated] Got any: $any")
+  }
+  def deleted: Receive = {
+    case any=>
+      log.info(s"[deleted] Got any: $any")
+  }
 
 }
