@@ -4,23 +4,32 @@ version := "1.0.0"
 
 scalaVersion := "2.12.7"
 lazy val akkaManagementVersion = "1.0.0"
-lazy val akkaVersion              = "2.5.27" //"2.6.3"
+lazy val akkaVersion              = "2.6.1" //"2.6.3"
+val akkaHttpVersion       = "10.1.11"
 lazy val akkaHttpJson4sVersion    = "1.25.2"
+val elastic4sVersion      = "7.3.1"
+val json4sVersion         = "3.6.7"
 
-libraryDependencies += "com.typesafe.akka" %% "akka-http"   % "10.1.5"
-libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json"   % "10.1.5"
+libraryDependencies += "com.typesafe.akka" %% "akka-http"   % akkaHttpVersion
+libraryDependencies += "com.typesafe.akka" %% "akka-http-spray-json"   % akkaHttpVersion
 libraryDependencies += "com.typesafe.akka" %% "akka-actor" % akkaVersion
 libraryDependencies += "com.typesafe.akka" %% "akka-stream" % akkaVersion
-libraryDependencies += "com.typesafe.akka" %% "akka-slf4j" % "2.5.22"
 libraryDependencies += "com.typesafe.akka" %% "akka-cluster-sharding" % akkaVersion
 libraryDependencies += "com.ajjpj.simple-akka-downing" %% "simple-akka-downing" % "0.9.1"
 libraryDependencies ++= Seq(
   "com.lightbend.akka.management" %% "akka-management-cluster-bootstrap" % "1.0.6",
+  "de.heikoseeberger"      %% "akka-http-json4s"        % "1.30.0",
   "com.typesafe.akka" %% "akka-discovery" % akkaVersion,
-  "com.typesafe.akka"             %% "akka-persistence"                    % akkaVersion,
-  "com.typesafe.akka"             %% "akka-persistence-query"              % akkaVersion,
-  "com.typesafe.akka"             %% "akka-persistence-cassandra"          % "0.98",
-  "com.typesafe.akka"             %% "akka-persistence-cassandra-launcher" % "0.98" % "test"
+  "com.sksamuel.elastic4s" %% "elastic4s-core"          % elastic4sVersion,
+  "com.sksamuel.elastic4s" %% "elastic4s-client-esjava" % elastic4sVersion,
+  "com.sksamuel.elastic4s" %% "elastic4s-http-streams"  % elastic4sVersion,
+  "com.sksamuel.elastic4s" %% "elastic4s-testkit"       % elastic4sVersion % "test",
+//  "com.typesafe.akka"      %% "akka-slf4j"              % akkaVersion,
+  "org.json4s"             %% "json4s-core"             % json4sVersion,
+  "org.json4s"             %% "json4s-jackson"          % json4sVersion,
+  "org.json4s"             %% "json4s-native"           % json4sVersion,
+  "com.outr"               %% "hasher"                  % "1.2.2",
+  "com.pauldijou"          %% "jwt-json4s-jackson"      % "4.2.0"
 )
 //libraryDependencies += "com.lightbend.akka.management" %% "akka-management"                     % akkaManagementVersion
 //libraryDependencies +="com.lightbend.akka.management" %% "akka-management-cluster-bootstrap"   % akkaManagementVersion
