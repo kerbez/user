@@ -13,6 +13,11 @@ trait ClientRoutes extends BaseRoute {
   //
   lazy val route = Route {
     concat(
+      pathPrefix("healthCheck"){
+        get{
+          complete("ok")
+        }
+      },
       pathPrefix("create"){
         concat(
           path("client"){
