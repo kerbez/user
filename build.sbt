@@ -3,6 +3,8 @@ name := "user"
 version := "1.0.0"
 
 scalaVersion := "2.12.7"
+
+
 lazy val akkaManagementVersion = "1.0.0"
 lazy val akkaVersion              = "2.6.1" //"2.6.3"
 val akkaHttpVersion       = "10.1.11"
@@ -66,3 +68,5 @@ libraryDependencies ++= Seq(
 //  "de.heikoseeberger"             %% "akka-http-json4s"                    % akkaHttpJson4sVersion,
 //  "commons-io"                    % "commons-io"                           % "2.6"
 //)
+
+enablePlugins(JavaAppPackaging)
