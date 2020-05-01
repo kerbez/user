@@ -8,9 +8,10 @@ import pdi.jwt.{Jwt, JwtAlgorithm, JwtJson4s}
 import user.commands.UserCommand.CreateClientCommand
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
-import user.service.ElasticFunctionality
+import user.service.PostgresClient
 
 import scala.concurrent.ExecutionContextExecutor
+import scala.util.{Failure, Success}
 
 object UserEntity {
 
@@ -26,10 +27,10 @@ object UserEntity {
                                 )
 
 
-  def props(elasticFuncs: ElasticFunctionality)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) = Props(new UserEntity(elasticFuncs)(executionContext,materializer))
+  def props(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) = Props(new UserEntity(client)(executionContext,materializer))
 }
 
-class UserEntity(elasticFuncs: ElasticFunctionality)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) extends Actor {
+class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) extends Actor {
   import UserEntity._
   val log: LoggingAdapter = Logging(context.system, this)
 
@@ -42,28 +43,23 @@ class UserEntity(elasticFuncs: ElasticFunctionality)(implicit executionContext: 
 
       val user = User(cmd.userName, cmd.password, cmd.mobile, 0)
 
-      elasticFuncs
-        .ifUserExists(user.mobile)
-        .map { res =>
-          if (res) replyTo ! TokenResponse(201, "User already exists")
-          else {
-            //            val hashedUser = user.copy(publicName = Hasher(user.privateName + DateTime.now.toString).sha256.hash)
-            elasticFuncs
-              .createUser(user)
-              .map(
-                _ =>
-                  replyTo ! TokenResponse(201,
-                    "User successfully created!",
-                    Some(tokenGenerate(user.mobile, user.password)))
-              )
-              .recover {
-                case _: Exception => replyTo ! TokenResponse(404, "User can not be created!")
-              }
+      client.insert(user.mobile, user.userName, user.password, user.rating).onComplete {
+        case Success(cnt) =>
+          if(cnt == 0){
+            log.info(s"Got Success cnt: $cnt")
+            replyTo ! TokenResponse(201, "User already exists")
           }
-        }
-        .recover {
-          case _: Exception => replyTo ! TokenResponse(404, "User can not be created!")
-        }
+          else{
+            log.info(s"Got Success cnt: $cnt")
+            replyTo ! TokenResponse(201,
+              "User successfully created!",
+              Some(tokenGenerate(user.mobile, user.password)))
+          }
+        case Failure(exception) =>
+          log.info(s"Got Failure exception: $exception")
+          replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+      }
+
     case any =>
       log.info(s"Got any: $any")
       println(s"Got any $any")
