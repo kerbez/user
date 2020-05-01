@@ -43,22 +43,32 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
 
       val user = User(cmd.userName, cmd.password, cmd.mobile, 0)
 
-      client.insert(user.mobile, user.userName, user.password, user.rating).onComplete {
-        case Success(cnt) =>
-          if(cnt == 0){
-            log.info(s"Got Success cnt: $cnt")
-            replyTo ! TokenResponse(201, "User already exists")
-          }
-          else{
-            log.info(s"Got Success cnt: $cnt")
-            replyTo ! TokenResponse(201,
-              "User successfully created!",
-              Some(tokenGenerate(user.mobile, user.password)))
+      client.find(cmd.mobile).onComplete {
+        case Success(value) =>
+          value match {
+            case Some(x) =>
+              log.info(s"Got Success find value: $value")
+              replyTo ! TokenResponse(201, "User already exists")
+            case None =>
+              log.info(s"Got Success to find value: $value")
+              client.insert(user.mobile, user.userName, user.password, user.rating).onComplete {
+                case Success(cnt) =>
+                  log.info(s"Got Success insert cnt: $cnt")
+                  replyTo ! TokenResponse(201,
+                    "User successfully created!",
+                    Some(tokenGenerate(user.mobile, user.password)))
+                case Failure(exception) =>
+                  log.info(s"Got Failure insert exception: $exception")
+                  replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+              }
           }
         case Failure(exception) =>
-          log.info(s"Got Failure exception: $exception")
-          replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+          log.info(s"Got Failure find exception: $exception")
+          replyTo ! TokenResponse(404, "Failed to request db")
+
       }
+
+
 
     case any =>
       log.info(s"Got any: $any")
