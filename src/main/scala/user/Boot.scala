@@ -18,7 +18,7 @@ import scala.io.StdIn
 object Boot extends App with ClientRoutes {
 
   val config: Config = ConfigFactory.load()
-  implicit val system: ActorSystem = ActorSystem("UserShardSystem", config)
+  implicit val system: ActorSystem = ActorSystem("UserShardSystem")
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
