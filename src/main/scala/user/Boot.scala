@@ -32,12 +32,6 @@ object Boot extends App with ClientRoutes {
 
   override val someProps: Props = ClientActor.props(UserEntity.props(client))
 
-//  val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
-//  println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
-//  StdIn.readLine() // let it run until user presses return
-//  bindingFuture
-//    .flatMap(_.unbind()) // trigger unbinding from the port
-//    .onComplete(_ => system.terminate()) // and shutdown when done
 
 
   Http().bindAndHandle(route, "0.0.0.0", 8080)
