@@ -33,8 +33,7 @@ object Boot extends App with ClientRoutes {
   override val someProps: Props = ClientActor.props(UserEntity.props(client))
 
 
-
-  Http().bindAndHandle(route, "0.0.0.0", 8080)
+  Http().bindAndHandle(route, "0.0.0.0", 8001)
   println(s"Server running at http://localhost:8080/")
   Await.result(system.whenTerminated, Duration.Inf)
 
