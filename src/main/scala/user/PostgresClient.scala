@@ -1,4 +1,4 @@
-package user.service
+package user
 
 import akka.stream.Materializer
 import akka.stream.alpakka.slick.scaladsl.SlickSession
@@ -28,8 +28,8 @@ object PostgresClient{
 
 case class PostgresClient()(implicit session: SlickSession, executionContext: ExecutionContextExecutor, materializer: Materializer) {
   val databaseConfig = DatabaseConfig.forConfig[JdbcProfile]("slick-postgres")
-  import session.profile.api._
   import PostgresClient._
+  import session.profile.api._
 
   def find(mobile: String): Future[Option[(String, String, String, Int)]] = {
     databaseConfig.db
@@ -40,10 +40,26 @@ case class PostgresClient()(implicit session: SlickSession, executionContext: Ex
     databaseConfig.db
       .run(users += (mobile, name, password, rating))
 
-  def update(mobile: String, name: String, password: String, rating: Int): Future[Boolean] = {
+  def updateClient(mobile: String, name: String, password: String, rating: Int): Future[Boolean] = {
     val query = for (user <- users if user.mobile === mobile)
       yield (user.name, user.password, user.rating)
     databaseConfig.db.run(query.update(name, password, rating)) map { _ > 0 }
+  }
+
+  def updateName(mobile: String, name: String): Future[Boolean] = {
+    val query = for (user <- users if user.mobile === mobile)
+      yield user.name
+    databaseConfig.db.run(query.update(name)) map { _ > 0 }
+  }
+  def updatePassword(mobile: String, password: String): Future[Boolean] = {
+    val query = for (user <- users if user.mobile === mobile)
+      yield user.password
+    databaseConfig.db.run(query.update(password)) map { _ > 0 }
+  }
+  def updateRating(mobile: String, rating: Int): Future[Boolean] = {
+    val query = for (user <- users if user.mobile === mobile)
+      yield user.rating
+    databaseConfig.db.run(query.update(rating)) map { _ > 0 }
   }
 
   def delete(mobile: String): Future[Boolean] =

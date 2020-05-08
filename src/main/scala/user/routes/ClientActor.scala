@@ -1,37 +1,57 @@
 package user.routes
 
 import akka.actor.{Actor, ActorRef, Props}
-import user.commands.UserCommand.{CreateAdminCommand, CreateClientCommand, DeleteClientCommand, UpdateClientCommand}
-import user.{CreateAdmin, CreateClient, DeleteClient, UpdateClient}
+import akka.event.{Logging, LoggingAdapter}
+import user.commands.UserCommand._
+import user._
 
 object ClientActor {
   def props(prop: ActorRef) = Props(new ClientActor(prop))
 }
 
 class ClientActor(region: ActorRef) extends Actor{
+
+  val log: LoggingAdapter = Logging(context.system, this)
+
   override def receive: Receive = {
     case cmd: CreateClient =>
-      println(s"Got CreateClient: $cmd")
-//      context.actorOf(prop) ! CreateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      log.debug(s"Got CreateClient: $cmd")
       region ! CreateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
       context.become(waitingResponse(sender()))
 
     case cmd: UpdateClient =>
-      println(s"Got CreateClient: $cmd")
-//      context.actorOf(prop) ! UpdateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
-      region ! UpdateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      log.debug(s"Got UpdateClient: $cmd")
+      region ! UpdateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password, cmd.rating)
       context.become(waitingResponse(sender()))
 
     case cmd: DeleteClient =>
-      println(s"Got CreateClient: $cmd")
-//      context.actorOf(prop) ! DeleteClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
-      region ! DeleteClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      log.debug(s"Got DeleteClient: $cmd")
+      region ! DeleteClientCommand(cmd.id)
+      context.become(waitingResponse(sender()))
+
+    case cmd: GetClient =>
+      log.debug(s"Got GetClient: $cmd")
+      region ! GetClientCommand(cmd.id)
       context.become(waitingResponse(sender()))
 
     case cmd: CreateAdmin =>
-      println(s"Got CreateClient: $cmd")
-//      context.actorOf(prop) ! CreateAdminCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      log.debug(s"Got CreateAdmin: $cmd")
       region ! CreateAdminCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      context.become(waitingResponse(sender()))
+
+    case cmd: UpdateAdmin =>
+      log.debug(s"Got UpdateAdmin: $cmd")
+      region ! UpdateAdminCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      context.become(waitingResponse(sender()))
+
+    case cmd: DeleteAdmin =>
+      log.debug(s"Got DeleteAdmin: $cmd")
+      region ! DeleteAdminCommand(cmd.id)
+      context.become(waitingResponse(sender()))
+
+    case cmd: GetAdmin =>
+      log.debug(s"Got GetAdmin: $cmd")
+      region ! GetAdminCommand(cmd.id)
       context.become(waitingResponse(sender()))
 
     case cmd => println(s"Got any: $cmd")

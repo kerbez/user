@@ -11,7 +11,6 @@ import akka.management.scaladsl.AkkaManagement
 import akka.stream.alpakka.slick.scaladsl.SlickSession
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
-import user.service.PostgresClient
 //import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 //import akka.management.cluster.bootstrap.ClusterBootstrap
 //import akka.management.scaladsl.AkkaManagement

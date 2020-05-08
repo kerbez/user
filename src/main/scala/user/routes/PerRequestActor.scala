@@ -7,9 +7,8 @@ import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props, Recei
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
-import user.{Error, JsonSupport, RestMessage}
+import user.{Accepted, ClientInfo, Error, JsonSupport, RestMessage, TokenResponse}
 import spray.json._
-import user.entity.UserEntity.TokenResponse
 import user.routes.PerRequestActor.WithProps
 
 import scala.concurrent.Promise
@@ -29,9 +28,11 @@ trait PerRequestActor extends Actor with JsonSupport {
 
   override def receive: Receive = {
     case str: String => complete(OK, str)
+    case tokenResponse: TokenResponse => complete(OK, tokenResponse)
+    case clientInfo: ClientInfo => complete(OK, clientInfo)
+    case accepted: Accepted => complete(OK, accepted)
     case e: Error => complete(InternalServerError, e)
     case ReceiveTimeout => complete(GatewayTimeout, RequestTimeoutResponse)
-    case any: TokenResponse => complete(OK, any)
   }
 
   def complete(m: => ToResponseMarshallable): Unit = {
@@ -43,14 +44,14 @@ trait PerRequestActor extends Actor with JsonSupport {
   override val supervisorStrategy: SupervisorStrategy =
     OneForOneStrategy() {
       case e =>
-        complete(InternalServerError, Error(e.getMessage))
+        complete(InternalServerError, Error("100", e.getMessage))
         Stop
     }
 }
 
 object PerRequestActor {
   val EmptyJson = "{}".parseJson
-  val RequestTimeoutResponse = Error("Request timeout")
+  val RequestTimeoutResponse = Error("101", "Request timeout")
 
   case class WithProps(r: RequestContext, props: Props, message: RestMessage, p: Promise[RouteResult]) extends PerRequestActor {
     lazy val target: ActorRef = context.actorOf(props, "target")
