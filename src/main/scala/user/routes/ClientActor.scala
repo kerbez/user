@@ -5,15 +5,15 @@ import user.commands.UserCommand.{CreateAdminCommand, CreateClientCommand, Delet
 import user.{CreateAdmin, CreateClient, DeleteClient, UpdateClient}
 
 object ClientActor {
-  def props(prop: Props) = Props(new ClientActor(prop))
+  def props(region: ActorRef) = Props(new ClientActor(region))
 }
 
-class ClientActor(region: Props) extends Actor{
+class ClientActor(region: ActorRef) extends Actor{
   override def receive: Receive = {
     case cmd: CreateClient =>
       println(s"Got CreateClient: $cmd")
       //      context.actorOf(prop) ! CreateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
-      context.actorOf(region) ! CreateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
+      region ! CreateClientCommand(cmd.id, cmd.userName, cmd.mobile, cmd.password)
       context.become(waitingResponse(sender()))
 
     //    case cmd: UpdateClient =>

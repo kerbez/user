@@ -1,6 +1,7 @@
 package user.secvice
 
 import akka.actor.{Actor, Props}
+import akka.cluster.sharding.ShardRegion
 import akka.event.{Logging, LoggingAdapter}
 import akka.stream.Materializer
 import org.json4s._
@@ -8,6 +9,7 @@ import pdi.jwt.{Jwt, JwtAlgorithm, JwtJson4s}
 import user.commands.UserCommand.CreateClientCommand
 import org.json4s.JsonDSL._
 import org.json4s.jackson.JsonMethods._
+import user.commands.UserCommand
 import user.service.PostgresClient
 
 import scala.concurrent.ExecutionContextExecutor
@@ -28,6 +30,17 @@ object UserEntity {
 
 
   def props(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) = Props(new UserEntity(client)(executionContext,materializer))
+
+  val idExtractor: ShardRegion.ExtractEntityId = {
+    case cmd: UserCommand => (cmd.userId, cmd)
+  }
+
+  val shardResolver: ShardRegion.ExtractShardId = {
+    case cmd: UserCommand =>
+      (math.abs(cmd.userId.hashCode) % 100).toString
+  }
+
+  val shardName: String = "UserShard"
 }
 
 class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) extends Actor {
@@ -35,6 +48,8 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
   val log: LoggingAdapter = Logging(context.system, this)
 
   //  context.setReceiveTimeout(Duration(150, SECONDS))
+
+//  override def persistenceId: String = self.path.name
 
   def receive: Receive = {
     case cmd: CreateClientCommand =>
@@ -67,9 +82,6 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
           replyTo ! TokenResponse(404, "Failed to request db")
 
       }
-
-
-
     case any =>
       log.info(s"Got any: $any")
       println(s"Got any $any")

@@ -17,10 +17,9 @@ object PostgresClient{
       "test_user2"
     ) {
     def mobile      = column[String]("mobile")
-    def name     = column[String]("name")
-    def password           = column[String]("password")
-    def rating        = column[Int]("rating")
-
+    def name        = column[String]("name")
+    def password    = column[String]("password")
+    def rating      = column[Int]("rating")
     def * =
       (mobile, name, password, rating)
     def pk = primaryKey("test_user_pkey", mobile)
@@ -35,10 +34,13 @@ case class PostgresClient()(implicit session: SlickSession, executionContext: Ex
   import PostgresClient._
 
   def find(mobile: String): Future[Option[(String, String, String, Int)]] = {
-    databaseConfig.db.run((for (user <- users if user.mobile === mobile) yield user).result.headOption)
+    databaseConfig.db
+      .run((for (user <- users if user.mobile === mobile) yield user).result.headOption)
   }
 
-  def insert(mobile: String, name: String, password: String, rating: Int): Future[Int] = databaseConfig.db.run(users += (mobile, name, password, rating))
+  def insert(mobile: String, name: String, password: String, rating: Int): Future[Int] =
+    databaseConfig.db
+      .run(users += (mobile, name, password, rating))
 
   def update(mobile: String, name: String, password: String, rating: Int): Future[Boolean] = {
     val query = for (user <- users if user.mobile === mobile)
