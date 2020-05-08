@@ -2,16 +2,32 @@ package user.entity
 
 import akka.actor.{Actor, Props}
 import akka.cluster.sharding.ShardRegion
-import akka.http.scaladsl.model.DateTime
-import akka.persistence.{PersistentActor, RecoveryCompleted, SnapshotOffer}
-import user.CreateClient
+import akka.event.{Logging, LoggingAdapter}
+import akka.stream.Materializer
+import org.json4s._
+import pdi.jwt.{Jwt, JwtAlgorithm, JwtJson4s}
+import org.json4s.JsonDSL._
+import org.json4s.jackson.JsonMethods._
 import user.commands.UserCommand
 import user.commands.UserCommand.CreateClientCommand
-import user.model.UserEvent.{UserCreatedEvent, UserDeletedEvent, UserUpdatedEvent}
-import user.model.{State, UserData, UserEvent, UserStatus}
+import user.service.PostgresClient
+
+import scala.concurrent.ExecutionContextExecutor
+import scala.util.{Failure, Success}
 
 object UserEntity {
-  def props = Props(new UserEntity())
+  final case class User(userName: String,
+                        password: String,
+                        mobile: String,
+                        rating: Int)
+
+  final case class TokenResponse(
+                                  statusCode: Int,
+                                  description: String,
+                                  jwtToken: Option[String] = None
+                                )
+
+  def props(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) = Props(new UserEntity(client: PostgresClient)(executionContext, materializer))
 
   val idExtractor: ShardRegion.ExtractEntityId = {
     case cmd: UserCommand => (cmd.userId, cmd)
@@ -25,57 +41,62 @@ object UserEntity {
   val shardName: String = "UserShard"
 }
 
-class UserEntity() extends Actor {
-
-  def updateState(event: UserEvent) = {
-    event match {
-      case evt: UserCreatedEvent =>
-        state = state.copy(
-          data = state.data.copy(
-            id = evt.id,
-            application = state.data.application
-          ),
-          status = UserStatus.CREATED,
-          timestamp = evt.timestamp
-        )
-      case evt: UserUpdatedEvent =>
-        state = state.copy(
-          data = state.data.copy(
-            application = evt.userApplication),
-          status = UserStatus.UPDATED
-        )
-      case evt: UserDeletedEvent =>
-        state = state.copy(
-          status = UserStatus.DELETED,
-          timestamp = evt.timestamp
-        )
-    }
-  }
-
-  var state: State = State.empty()
-
-  val receiveRecover: Receive = {
-    case RecoveryCompleted =>
-      state.status match {
-        case UserStatus.INIT => context.become(receive)
-//        case UserStatus.CREATED => context.become(created)
-//        case UserStatus.UPDATED => context.become(updated)
-//        case UserStatus.DELETED => context.become(deleted)
-      }
-    case evt: UserEvent  =>
-      updateState(evt)
-  }
-
-//  override def receiveCommand: Receive = init
+class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) extends Actor {
+  import UserEntity._
+  val log: LoggingAdapter = Logging(context.system, this)
 
   def receive: Receive = {
     case cmd: CreateClientCommand =>
-      println(s"Got cmd: $cmd")
-      val event = UserCreatedEvent(cmd.userId, cmd.userName, cmd.mobile, cmd.password, DateTime.now)
-      sender() ! "created"
+      log.info(s"[init] Got CreateClientCommand: $cmd")
+      val replyTo = sender()
+
+      val user = User(cmd.userName, cmd.password, cmd.mobile, 0)
+
+      client.find(cmd.mobile).onComplete {
+        case Success(value) =>
+          value match {
+            case Some(x) =>
+              log.info(s"Got Success find value: $value")
+              replyTo ! TokenResponse(201, "User already exists")
+            case None =>
+              log.info(s"Got Success to find value: $value")
+              client.insert(user.mobile, user.userName, user.password, user.rating).onComplete {
+                case Success(cnt) =>
+                  log.info(s"Got Success insert cnt: $cnt")
+                  replyTo ! TokenResponse(201,
+                    "User successfully created!",
+                    Some(tokenGenerate(user.mobile, user.password)))
+                case Failure(exception) =>
+                  log.info(s"Got Failure insert exception: $exception")
+                  replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+              }
+          }
+        case Failure(exception) =>
+          log.info(s"Got Failure find exception: $exception")
+          replyTo ! TokenResponse(404, "Failed to request db")
+
+      }
     case any =>
+      log.info(s"Got any: $any")
       println(s"Got any $any")
 
+  }
+
+
+
+  private def tokenGenerate(mobile: String, password: String): String = {
+    val claim     = JObject(("mobile", mobile), ("password", password))
+    val key       = "secretKey"
+    val algorithm = JwtAlgorithm.HS256
+    JwtJson4s.encode(claim, key, algorithm)
+  }
+
+  def checkToken(headers: Map[String, String]): Boolean = {
+    val bearerToken = headers.getOrElse("Authorization", "")
+    val token       = if (bearerToken.nonEmpty) bearerToken.split(" ")(1) else ""
+    val key         = "secretKey"
+    val algorithm   = JwtAlgorithm.HS256
+    Jwt.decode(token, key, Seq(algorithm)).isSuccess
   }
 //  def created: Receive = {
 //

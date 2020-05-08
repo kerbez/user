@@ -8,6 +8,10 @@ import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 import akka.http.scaladsl.Http
 import akka.management.cluster.bootstrap.ClusterBootstrap
 import akka.management.scaladsl.AkkaManagement
+import akka.stream.alpakka.slick.scaladsl.SlickSession
+import slick.basic.DatabaseConfig
+import slick.jdbc.JdbcProfile
+import user.service.PostgresClient
 //import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 //import akka.management.cluster.bootstrap.ClusterBootstrap
 //import akka.management.scaladsl.AkkaManagement
@@ -44,9 +48,13 @@ object Boot extends App with ClientRoutes{
 
   override def actorSys: ActorSystem = system
 
+  val databaseConfig                 = DatabaseConfig.forConfig[JdbcProfile]("slick-postgres")
+  implicit val session: SlickSession = SlickSession.forConfig(databaseConfig)
+
+  val client = PostgresClient()
   val region = ClusterSharding(system).start(
     typeName = UserEntity.shardName,
-    entityProps = Props[UserEntity],
+    entityProps = UserEntity.props(client),
     settings = ClusterShardingSettings(system),
     extractEntityId = UserEntity.idExtractor,
     extractShardId = UserEntity.shardResolver)
@@ -78,6 +86,9 @@ object Boot extends App with ClientRoutes{
 
   setShutDown(config, cluster)
 
+  system.registerOnTermination(session.close())
+  system.registerOnTermination(println("Shutting down Actor System."))
+
   def setShutDown(config: Config, cluster: Cluster)(implicit system: ActorSystem): ShutdownHookThread = {
     val shutDownHookTimeout: Duration = Try {
       FiniteDuration(config.getDuration("shutdown-hook-timeout").toNanos, TimeUnit.NANOSECONDS)
@@ -89,6 +100,8 @@ object Boot extends App with ClientRoutes{
 
 //        log.debug("SHUTDOWN HOOK: Leaving cluster.")
 
+        println("SHUTDOWN HOOK: Closing connection.")
+        session.close()
         val shutdownPromise = Promise[Unit]()
 
         cluster.registerOnMemberRemoved {

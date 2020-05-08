@@ -9,6 +9,7 @@ import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
 import user.{Error, JsonSupport, RestMessage}
 import spray.json._
+import user.entity.UserEntity.TokenResponse
 import user.routes.PerRequestActor.WithProps
 
 import scala.concurrent.Promise
@@ -30,6 +31,7 @@ trait PerRequestActor extends Actor with JsonSupport {
     case str: String => complete(OK, str)
     case e: Error => complete(InternalServerError, e)
     case ReceiveTimeout => complete(GatewayTimeout, RequestTimeoutResponse)
+    case any: TokenResponse => complete(OK, any)
   }
 
   def complete(m: => ToResponseMarshallable): Unit = {
