@@ -168,7 +168,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
               log.debug(s"Got Success find value: $x")
               if(cmd.userId == x._1 && cmd.password == x._3) {
                 replyTo ! TokenResponse(201,
-                  "User successfully created!",
+                  "Token successfully generated!",
                   Some(tokenGenerate(cmd.userId, cmd.password)))
               }
               else {
@@ -195,7 +195,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
                 replyTo ! Accepted("200", "Success")
               }
               else {
-                replyTo ! Error("110", "Wrong password")
+                replyTo ! Error("110", "Wrong token")
               }
             case None =>
               log.debug(s"Got Success to find value: $found")
