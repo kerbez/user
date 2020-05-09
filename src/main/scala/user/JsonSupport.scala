@@ -10,6 +10,9 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val updateClient = jsonFormat5(UpdateClient)
   implicit val deleteClient = jsonFormat1(DeleteClient)
   implicit val getClient    = jsonFormat1(GetClient)
+  implicit val getClientToken = jsonFormat2(GetClientToken)
+  implicit val checkClientToken = jsonFormat2(CheckClientToken)
+
   implicit val createAdmin  = jsonFormat4(CreateAdmin)
   implicit val updateAdmin  = jsonFormat4(UpdateAdmin)
   implicit val deleteAdmin  = jsonFormat1(DeleteAdmin)

@@ -7,7 +7,7 @@ import akka.stream.Materializer
 import org.json4s._
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtJson4s}
 import org.json4s.JsonDSL._
-import user.{Accepted, ClientInfo, Error, PostgresClient, TokenResponse, User}
+import user.{Accepted, ClientInfo, Error, PostgresClient, RestWithHeader, TokenResponse, User}
 import user.commands.UserCommand
 import user.commands.UserCommand._
 
@@ -76,17 +76,22 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
           found match {
             case Some(x) =>
               log.info(s"Got Success find value: $found")
-              client.update(cmd.userId, user.userName, user.password, user.rating).onComplete {
-                case Success(value) =>
-                  if(value) {
-                    log.info(s"Got Success update value: $value")
-                    replyTo ! Accepted("200", "OK")
-                  } else {
-                    log.info(s"Got Success update value: $value")
-                    replyTo ! Error("120", "Failed to request db")
-                  }
-                case Failure(exception) =>
-                  replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+              if(checkClientToken(x._1, x._3, cmd.token)){
+                client.updateClient(cmd.userId, user.userName, user.password, user.rating).onComplete {
+                  case Success(value) =>
+                    if(value) {
+                      log.info(s"Got Success update value: $value")
+                      replyTo ! Accepted("200", "OK")
+                    } else {
+                      log.info(s"Got Success update value: $value")
+                      replyTo ! Error("120", "Failed to request db")
+                    }
+                  case Failure(exception) =>
+                    replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+                }
+              }
+              else{
+                replyTo ! Error("403", "Access Denied")
               }
             case None =>
               log.info(s"Got Success to find value: $found")
@@ -106,18 +111,24 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
           found match {
             case Some(x) =>
               log.debug(s"Got Success find value: $found")
-              client.delete(cmd.userId).onComplete {
-                case Success(value) =>
-                  if(value) {
-                    log.debug(s"Got Success delete value: $found")
-                    replyTo ! Accepted("200", "OK")
-                  } else {
-                    log.debug(s"Got Success delete value: $found")
-                    replyTo ! Error("120", "Failed to request db")
-                  }
-                case Failure(exception) =>
-                  log.debug(s"Failed to request db delete, exception: " + exception.toString)
-                  replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+              if(checkClientToken(x._1, x._3, cmd.token)) {
+                client.delete(cmd.userId).onComplete {
+                  case Success(value) =>
+                    if (value) {
+                      log.debug(s"Got Success delete value: $found")
+                      replyTo ! Accepted("200", "OK")
+                    } else {
+                      log.debug(s"Got Success delete value: $found")
+                      replyTo ! Error("120", "Failed to request db")
+                    }
+                  case Failure(exception) =>
+                    log.debug(s"Failed to request db delete, exception: " + exception.toString)
+                    replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+                }
+              }
+              else{
+                log.debug(s"Got access denied for user: ${x._1}")
+                replyTo ! Error("403", "Access Denied")
               }
             case None =>
               log.debug(s"Got Success to find value: $found")
@@ -146,8 +157,54 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
           log.debug(s"Got Failure find exception: $exception")
           replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
       }
-    case cmd: CreateAdminCommand =>
-    case cmd: UpdateAdminCommand =>
+    case cmd: GetClientTokenCommand =>
+      log.info(s"[init] Got GetClientCommand: $cmd")
+      val replyTo = sender()
+
+      client.find(cmd.userId).onComplete {
+        case Success(found) =>
+          found match {
+            case Some(x) =>
+              log.debug(s"Got Success find value: $x")
+              if(cmd.userId == x._1 && cmd.password == x._3) {
+                replyTo ! TokenResponse(201,
+                  "User successfully created!",
+                  Some(tokenGenerate(cmd.userId, cmd.password)))
+              }
+              else {
+                replyTo ! Error("110", "Wrong password")
+              }
+            case None =>
+              log.debug(s"Got Success to find value: $found")
+              replyTo ! Error("110", "User does't exist")
+          }
+        case Failure(exception) =>
+          log.debug(s"Got Failure find exception: $exception")
+          replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+      }
+    case cmd: CheckClientTokenCommand =>
+      log.info(s"[init] Got GetClientCommand: $cmd")
+      val replyTo = sender()
+
+      client.find(cmd.userId).onComplete {
+        case Success(found) =>
+          found match {
+            case Some(x) =>
+              log.debug(s"Got Success find value: $x")
+              if(checkClientToken(x._1, x._3, cmd.token)) {
+                replyTo ! Accepted("200", "Success")
+              }
+              else {
+                replyTo ! Error("110", "Wrong password")
+              }
+            case None =>
+              log.debug(s"Got Success to find value: $found")
+              replyTo ! Error("110", "User does't exist")
+          }
+        case Failure(exception) =>
+          log.debug(s"Got Failure find exception: $exception")
+          replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+      }
     case cmd: DeleteAdminCommand =>
     case cmd: GetAdminCommand =>
     case any =>
@@ -157,6 +214,10 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
   }
 
 
+  def checkClientToken(mobile: String, password: String, token: String): Boolean = {
+    println(tokenGenerate(mobile, password) + " != " + token)
+    (tokenGenerate(mobile, password) == token)
+  }
 
   private def tokenGenerate(mobile: String, password: String): String = {
     val claim     = JObject(("mobile", mobile), ("password", password))
@@ -172,14 +233,6 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
     val algorithm   = JwtAlgorithm.HS256
     Jwt.decode(token, key, Seq(algorithm)).isSuccess
   }
-//  def created: Receive = {
-//
-//  }
-//  def updated: Receive = {
-//
-//  }
-//  def deleted: Receive = {
-//
-//  }
+
 
 }

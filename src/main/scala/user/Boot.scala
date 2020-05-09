@@ -31,6 +31,7 @@ object Boot extends App with ClientRoutes{
 
   val config = ConfigFactory.load()
 //  val clusterName = config.getString("akka.management.cluster.bootstrap.contact-point-discovery.service-name")
+
   implicit val system: ActorSystem = ActorSystem("UserShardSystem", config)
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -51,6 +52,7 @@ object Boot extends App with ClientRoutes{
   implicit val session: SlickSession = SlickSession.forConfig(databaseConfig)
 
   val client = PostgresClient()
+
   val region = ClusterSharding(system).start(
     typeName = UserEntity.shardName,
     entityProps = UserEntity.props(client),

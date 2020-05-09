@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props, Recei
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
-import user.{Accepted, ClientInfo, Error, JsonSupport, RestMessage, TokenResponse}
+import user.{Accepted, ClientInfo, Error, JsonSupport, RestMessage, RestWithHeader, TokenResponse}
 import spray.json._
 import user.routes.PerRequestActor.WithProps
 
@@ -20,7 +20,7 @@ trait PerRequestActor extends Actor with JsonSupport {
 
   def r: RequestContext
   def target: ActorRef
-  def message: RestMessage
+  def message: RestWithHeader
   def p: Promise[RouteResult]
 
   setReceiveTimeout(2.seconds)
@@ -53,13 +53,13 @@ object PerRequestActor {
   val EmptyJson = "{}".parseJson
   val RequestTimeoutResponse = Error("101", "Request timeout")
 
-  case class WithProps(r: RequestContext, props: Props, message: RestMessage, p: Promise[RouteResult]) extends PerRequestActor {
+  case class WithProps(r: RequestContext, props: Props, message: RestWithHeader, p: Promise[RouteResult]) extends PerRequestActor {
     lazy val target: ActorRef = context.actorOf(props, "target")
   }
 }
 
 trait PerRequestCreator {
-  def perRequest(r: RequestContext, props: Props, req: RestMessage, p: Promise[RouteResult])
+  def perRequest(r: RequestContext, props: Props, req: RestWithHeader, p: Promise[RouteResult])
                 (implicit ac: ActorSystem): ActorRef =
     ac.actorOf(Props(classOf[WithProps], r, props, req, p), s"pr-${UUID.randomUUID().toString}")
 }
