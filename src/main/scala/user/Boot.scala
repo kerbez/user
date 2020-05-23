@@ -11,6 +11,7 @@ import akka.management.scaladsl.AkkaManagement
 import akka.stream.alpakka.slick.scaladsl.SlickSession
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
+import user.Boot.system
 //import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 //import akka.management.cluster.bootstrap.ClusterBootstrap
 //import akka.management.scaladsl.AkkaManagement
@@ -75,22 +76,21 @@ object Boot extends App with ClientRoutes{
 
     val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
     println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
-    bindingFuture
-      .flatMap(_.unbind()) // trigger unbinding from the port
-      .onComplete(_ => system.terminate()) // and shutdown when done
+//    StdIn.readLine() // let it run until user presses return
+//    bindingFuture
+//      .flatMap(_.unbind()) // trigger unbinding from the port
+//      .onComplete(_ => system.terminate()) // and shutdown when done
 
 //    HttpServer(region, signerRegion, authRequestUrl, amqpProducer, emailCheck).startServer()
 //    log.debug(s"Customer API server running at 0.0.0.0:8080")
-//    Await.result(system.whenTerminated, Duration.Inf)
+    Await.result(system.whenTerminated, Duration.Inf)
   }
 
   setShutDown(config, cluster)
 
-  system.registerOnTermination(session.close())
-  system.registerOnTermination(println("Shutting down Actor System."))
-
   def setShutDown(config: Config, cluster: Cluster)(implicit system: ActorSystem): ShutdownHookThread = {
+    system.registerOnTermination(session.close())
+    system.registerOnTermination(println("Shutting down Actor System."))
     val shutDownHookTimeout: Duration = Try {
       FiniteDuration(config.getDuration("shutdown-hook-timeout").toNanos, TimeUnit.NANOSECONDS)
     }.getOrElse(FiniteDuration(50, TimeUnit.SECONDS))
