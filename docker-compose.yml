@@ -4,8 +4,8 @@ services:
     container_name: user_habit_seed
     image: habit/user:latest
     ports:
-      - '8100:8100'
+      - '8100:8101'
     environment:
       CLUSTER_PORT: 8100
-      CLUSTER_IP: user_habit
-      SEED_PORT_1600_TCP_ADDR: user_habit
+      CLUSTER_IP: 127.0.0.1"
+      SEED_PORT_1600_TCP_ADDR: "127.0.0.1"

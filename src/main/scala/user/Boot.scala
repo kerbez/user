@@ -75,12 +75,12 @@ object Boot extends App with ClientRoutes{
   cluster.registerOnMemberUp {
 //    val serverSource = Http().bind(interface = host, port = port)
 
-    val bindingFuture = Http().bindAndHandle(route, "0.0.0.0", 8080)
-    println(s"Server online at http://0.0.0.0:8080/\nPress RETURN to stop...")
-    StdIn.readLine() // let it run until user presses return
-    bindingFuture
-      .flatMap(_.unbind()) // trigger unbinding from the port
-      .onComplete(_ => system.terminate()) // and shutdown when done
+    Http().bindAndHandle(route, "0.0.0.0", 8101)
+    println(s"Server online at http://$host:8101/\nPress RETURN to stop...")
+//    StdIn.readLine() // let it run until user presses return
+//    bindingFuture
+//      .flatMap(_.unbind()) // trigger unbinding from the port
+//      .onComplete(_ => system.terminate()) // and shutdown when done
 
 //    HttpServer(region, signerRegion, authRequestUrl, amqpProducer, emailCheck).startServer()
 //    log.debug(s"Customer API server running at 0.0.0.0:8080")
