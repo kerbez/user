@@ -1,0 +1,11 @@
+version: '3.1'
+services:
+  user_habit:
+    container_name: user_habit_seed
+    image: habit/user:latest
+    ports:
+      - '8100:8100'
+    environment:
+      CLUSTER_PORT: 8100
+      CLUSTER_IP: user_habit
+      SEED_PORT_1600_TCP_ADDR: user_habit

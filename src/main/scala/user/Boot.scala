@@ -31,9 +31,10 @@ object Boot extends App with ClientRoutes{
 //  val log: Logger = LoggerFactory.getLogger("Boot")
 
   val config = ConfigFactory.load()
-//  val clusterName = config.getString("akka.management.cluster.bootstrap.contact-point-discovery.service-name")
-
-  implicit val system: ActorSystem = ActorSystem("UserShardSystem", config)
+  val clusterName = config.getString("clustering.cluster.name")
+  val host = config.getString("clustering.ip")
+  val port = config.getInt("clustering.port")
+  implicit val system: ActorSystem = ActorSystem(clusterName, config)
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
   implicit val executionContext: ExecutionContextExecutor = system.dispatcher
@@ -72,14 +73,14 @@ object Boot extends App with ClientRoutes{
 //        .onComplete(_ => system.terminate()) // and shutdown when done
 
   cluster.registerOnMemberUp {
-    val serverSource = Http().bind(interface = "localhost", port = 8080)
+//    val serverSource = Http().bind(interface = host, port = port)
 
-    val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
-    println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")
-//    StdIn.readLine() // let it run until user presses return
-//    bindingFuture
-//      .flatMap(_.unbind()) // trigger unbinding from the port
-//      .onComplete(_ => system.terminate()) // and shutdown when done
+    val bindingFuture = Http().bindAndHandle(route, "0.0.0.0", 8080)
+    println(s"Server online at http://0.0.0.0:8080/\nPress RETURN to stop...")
+    StdIn.readLine() // let it run until user presses return
+    bindingFuture
+      .flatMap(_.unbind()) // trigger unbinding from the port
+      .onComplete(_ => system.terminate()) // and shutdown when done
 
 //    HttpServer(region, signerRegion, authRequestUrl, amqpProducer, emailCheck).startServer()
 //    log.debug(s"Customer API server running at 0.0.0.0:8080")

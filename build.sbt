@@ -24,3 +24,10 @@ libraryDependencies ++= Seq(
   "com.outr"               %% "hasher"                  % "1.2.2",
   "com.pauldijou"          %% "jwt-json4s-jackson"      % "4.2.0"
 )
+
+
+version in Docker := "latest"
+dockerExposedPorts in Docker := Seq(8100)
+dockerRepository := Some("habit")
+dockerBaseImage := "java"
+enablePlugins(JavaAppPackaging)
