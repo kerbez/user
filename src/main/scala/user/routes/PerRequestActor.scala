@@ -23,7 +23,7 @@ trait PerRequestActor extends Actor with JsonSupport {
   def message: RestWithHeader
   def p: Promise[RouteResult]
 
-  setReceiveTimeout(2.seconds)
+  setReceiveTimeout(5.seconds)
   target ! message
 
   override def receive: Receive = {

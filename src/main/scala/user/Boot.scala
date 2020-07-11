@@ -12,6 +12,7 @@ import akka.stream.alpakka.slick.scaladsl.SlickSession
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
 import user.Boot.system
+import user.entity.RegistrationActor
 //import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
 //import akka.management.cluster.bootstrap.ClusterBootstrap
 //import akka.management.scaladsl.AkkaManagement
@@ -31,9 +32,12 @@ object Boot extends App with ClientRoutes{
 //  val log: Logger = LoggerFactory.getLogger("Boot")
 
   val config = ConfigFactory.load()
-  val clusterName = config.getString("clustering.cluster.name")
-  val host = config.getString("clustering.ip")
-  val port = config.getInt("clustering.port")
+  val clusterName = "UserShardSystem"
+  val host = "127.0.0.1"
+  val port = 2551
+//  val clusterName = config.getString("clustering.cluster.name")
+//  val host = config.getString("clustering.ip")
+//  val port = config.getInt("clustering.port")
   implicit val system: ActorSystem = ActorSystem(clusterName, config)
 
   implicit val materializer: ActorMaterializer = ActorMaterializer()
@@ -63,7 +67,8 @@ object Boot extends App with ClientRoutes{
     extractShardId = UserEntity.shardResolver)
 
 
-  override val someProps: Props = ClientActor.props(region)
+  val registrationProps = RegistrationActor.props(region, client)
+  override val someProps: Props = ClientActor.props(region, registrationProps, client)
 
 //  val bindingFuture = Http().bindAndHandle(route, "localhost", 8080)
 //      println(s"Server online at http://localhost:8080/\nPress RETURN to stop...")

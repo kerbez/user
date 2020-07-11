@@ -9,17 +9,22 @@ import slick.jdbc.PostgresProfile.api._
 import scala.concurrent.{ExecutionContextExecutor, Future}
 object PostgresClient{
   class Users(tag: Tag)
-    extends Table[(String, String, String, Int)](
+    extends Table[(String, String, String, String, Boolean, Boolean, String, Int, String)](
       tag,
       Some("test_user_schema"),
       "test_user2"
     ) {
-    def mobile      = column[String]("mobile")
-    def name        = column[String]("name")
+    def id          = column[String]("id")
+    def nikName     = column[String]("nikName")
     def password    = column[String]("password")
+    def email       = column[String]("email")
+    def emailVerified = column[Boolean]("emailVerified")
+    def mobileVerified = column[Boolean]("mobileVerified")
+    def name        = column[String]("name")
     def rating      = column[Int]("rating")
+    def mobile      = column[String]("mobile")
     def * =
-      (mobile, name, password, rating)
+      (id, nikName, password, email, emailVerified, mobileVerified, name, rating, mobile)
     def pk = primaryKey("test_user_pkey", mobile)
   }
 
@@ -31,38 +36,57 @@ case class PostgresClient()(implicit session: SlickSession, executionContext: Ex
   import PostgresClient._
   import session.profile.api._
 
-  def find(mobile: String): Future[Option[(String, String, String, Int)]] = {
+  def find(id: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
     databaseConfig.db
-      .run((for (user <- users if user.mobile === mobile) yield user).result.headOption)
+      .run((for (user <- users if user.id === id) yield user).result.headOption)
   }
 
-  def insert(mobile: String, name: String, password: String, rating: Int): Future[Int] =
+  def findEmail(email: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
     databaseConfig.db
-      .run(users += (mobile, name, password, rating))
-
-  def updateClient(mobile: String, name: String, password: String, rating: Int): Future[Boolean] = {
-    val query = for (user <- users if user.mobile === mobile)
-      yield (user.name, user.password, user.rating)
-    databaseConfig.db.run(query.update(name, password, rating)) map { _ > 0 }
+      .run((for (user <- users if user.email === email) yield user).result.headOption)
   }
 
-  def updateName(mobile: String, name: String): Future[Boolean] = {
-    val query = for (user <- users if user.mobile === mobile)
+  def findNikName(nikName: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
+    databaseConfig.db
+      .run((for (user <- users if user.nikName === nikName) yield user).result.headOption)
+  }
+
+  def insert(id: String, nikname: String, password: String, rating: Int): Future[Int] =
+    databaseConfig.db
+      .run(users += (id, nikname, password, "", false, false, "", rating, ""))
+
+//  def updateClient(id: String, nikName: Option[String], password: Option[String], email: Option[String], emailVerified: Option[Boolean], rating: Option[Int]): Future[Boolean] = {
+//    val query = for (user <- users if user.id === id)
+//      yield (user.nikName, user.password, user.email, user.emailVerified, user.rating)
+//    databaseConfig.db.run(query.update(nikName.getOrElse(name), password, rating)) map { _ > 0 }
+//  }
+
+  def updateVerifiedEmail(id: String, email: String, emailVerified: Boolean): Future[Boolean] = {
+    val query = for (user <- users if user.id === id)
+      yield (user.email, user.emailVerified)
+    databaseConfig.db.run(query.update(email, emailVerified)) map { _ > 0 }
+
+  }
+
+  def updateName(id: String, name: String): Future[Boolean] = {
+    val query = for (user <- users if user.id === id)
       yield user.name
     databaseConfig.db.run(query.update(name)) map { _ > 0 }
   }
-  def updatePassword(mobile: String, password: String): Future[Boolean] = {
-    val query = for (user <- users if user.mobile === mobile)
+
+  def updatePassword(id: String, password: String): Future[Boolean] = {
+    val query = for (user <- users if user.id === id)
       yield user.password
     databaseConfig.db.run(query.update(password)) map { _ > 0 }
   }
-  def updateRating(mobile: String, rating: Int): Future[Boolean] = {
-    val query = for (user <- users if user.mobile === mobile)
+
+  def updateRating(id: String, rating: Int): Future[Boolean] = {
+    val query = for (user <- users if user.id === id)
       yield user.rating
     databaseConfig.db.run(query.update(rating)) map { _ > 0 }
   }
 
-  def delete(mobile: String): Future[Boolean] =
-    databaseConfig.db.run(users.filter(_.mobile === mobile).delete) map { _ > 0 }
+  def delete(id: String): Future[Boolean] =
+    databaseConfig.db.run(users.filter(_.id === id).delete) map { _ > 0 }
 
 }

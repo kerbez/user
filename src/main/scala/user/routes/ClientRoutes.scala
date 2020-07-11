@@ -11,13 +11,61 @@ trait ClientRoutes extends BaseRoute {
   def someProps: Props
 
   //
-  lazy val route = Route {
+  lazy val route: Route = Route {
     concat(
       pathPrefix("client"){
         concat(
           httpHeaders { headers =>
+            path("checkEmail") {
+              entity(as[CheckEmail]) { entity =>
+                post {
+                  val cmd = RestWithHeader(entity, headers)
+                  work {
+                    cmd
+                  }
+                }
+              }
+            }
+          },
+          httpHeaders { headers =>
+            path("checkNikName") {
+              entity(as[CheckNikName]) { entity =>
+                post {
+                  val cmd = RestWithHeader(entity, headers)
+                  work {
+                    cmd
+                  }
+                }
+              }
+            }
+          },
+          httpHeaders { headers =>
             path("create") {
-              entity(as[CreateClient]) { entity =>
+              entity(as[Register]) { entity =>
+                post {
+                  val cmd = RestWithHeader(entity, headers)
+                  work {
+                    cmd
+                  }
+                }
+              }
+            }
+          },
+          httpHeaders { headers =>
+            path("verifyEmail") {
+              entity(as[VerifyEmail]) { entity =>
+                post {
+                  val cmd = RestWithHeader(entity, headers)
+                  work {
+                    cmd
+                  }
+                }
+              }
+            }
+          },
+          httpHeaders { headers =>
+            path("emailVerificationCode") {
+              entity(as[VerificationCode]) { entity =>
                 post {
                   val cmd = RestWithHeader(entity, headers)
                   work {

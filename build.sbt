@@ -22,7 +22,8 @@ libraryDependencies ++= Seq(
   "org.postgresql"       % "postgresql"         % "42.2.5",
   "com.github.tototoshi" %% "slick-joda-mapper" % "2.4.0",
   "com.outr"               %% "hasher"                  % "1.2.2",
-  "com.pauldijou"          %% "jwt-json4s-jackson"      % "4.2.0"
+  "com.pauldijou"          %% "jwt-json4s-jackson"      % "4.2.0",
+  "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
 
