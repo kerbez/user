@@ -7,7 +7,7 @@ import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props, Recei
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
-import user.{Accepted, ClientInfo, Error, JsonSupport, RestMessage, RestWithHeader, TokenResponse}
+import user.{Accepted, ClientInfo, Error, GeneralResponse, JsonSupport, RestMessage, RestWithHeader, TokenResponse}
 import spray.json._
 import user.routes.PerRequestActor.WithProps
 
@@ -23,12 +23,13 @@ trait PerRequestActor extends Actor with JsonSupport {
   def message: RestWithHeader
   def p: Promise[RouteResult]
 
-  setReceiveTimeout(5.seconds)
+  setReceiveTimeout(60.seconds)
   target ! message
 
   override def receive: Receive = {
     case str: String => complete(OK, str)
     case tokenResponse: TokenResponse => complete(OK, tokenResponse)
+    case generalResponse: GeneralResponse => complete(OK, generalResponse)
     case clientInfo: ClientInfo => complete(OK, clientInfo)
     case accepted: Accepted => complete(OK, accepted)
     case e: Error => complete(InternalServerError, e)

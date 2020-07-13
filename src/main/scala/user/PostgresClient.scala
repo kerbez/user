@@ -12,7 +12,7 @@ object PostgresClient{
     extends Table[(String, String, String, String, Boolean, Boolean, String, Int, String)](
       tag,
       Some("test_user_schema"),
-      "test_user2"
+      "test_user3"
     ) {
     def id          = column[String]("id")
     def nikName     = column[String]("nikName")
@@ -25,7 +25,7 @@ object PostgresClient{
     def mobile      = column[String]("mobile")
     def * =
       (id, nikName, password, email, emailVerified, mobileVerified, name, rating, mobile)
-    def pk = primaryKey("test_user_pkey", mobile)
+    def pk = primaryKey("test_user3_pkey", id)
   }
 
   val users = TableQuery[Users]

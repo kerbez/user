@@ -35,7 +35,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
   import UserEntity._
   val log: LoggingAdapter = Logging(context.system, this)
 
- context.setReceiveTimeout(60.seconds)
+ context.setReceiveTimeout(600.seconds)
   def receive: Receive = {
     case cmd: VerifyEmailCommand =>
       log.info(s"[init] Got VerifyEmailCommand: $cmd")
@@ -51,12 +51,17 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
               MailAgent.start(cmd.email, "kerbez2898@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
               context.become(waitingCode(cmd.email, code.toString))
               replyTo ! Accepted("201",
-                "Code send")
+                "Code sent")
             case None =>
+              log.info(s"User not found: $None")
+              replyTo ! Error("120",
+                "User not found")
+              stopEntity()
           }
         case Failure(exception) =>
           log.info(s"Got Failure find exception: $exception")
           replyTo ! TokenResponse(120, s"Got error when request db $exception")
+          stopEntity()
       }
     case cmd: GetClientCommand =>
       log.info(s"[init] Got GetClientCommand: $cmd")
@@ -69,33 +74,39 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
               log.debug(s"Got Success find value: $x")
               val info = ClientInfo(x._1, x._2, x._4, x._8)
               replyTo ! info
+              stopEntity()
             case None =>
               log.debug(s"Got Success to find value: $found")
               replyTo ! Error("110", "User does't exist")
+              stopEntity()
           }
         case Failure(exception) =>
           log.debug(s"Got Failure find exception: $exception")
           replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
+          stopEntity()
       }
     case cmd: VerificationCodeCommand =>
       log.info(s"Got unhandled VerificationCodeCommand: $cmd")
       sender() ! Error("134", "Code expired")
+      stopEntity()
 
     case cmd: CreateClientCommand =>
       log.info(s"[init] Got CreateClientCommand: $cmd")
       val replyTo = sender()
 
-      val user = User(cmd.userId, cmd.userName, cmd.password, None, 0)
+      val user = User(cmd.userId, cmd.nikName, cmd.password, None, 0)
 
-      client.insert(user.userId, user.userName, user.password, user.rating).onComplete {
+      client.insert(user.userId, user.nikName, user.password, user.rating).onComplete {
         case Success(cnt) =>
           log.info(s"Got Success insert cnt: $cnt")
           replyTo ! TokenResponse(201,
             "User successfully created!",
-            Some(user.userId))
+            Some(tokenGenerate(user.nikName, user.password)))
+          stopEntity()
         case Failure(exception) =>
           log.info(s"Got Failure insert exception: $exception")
           replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+          stopEntity()
       }
 
 
@@ -240,6 +251,10 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
 //      }
 
 
+    case ReceiveTimeout =>
+      log.info("Got ReceiveTimeout while waiting code")
+      //      context.become(receive)
+      stopEntity()
 
     case cmd: DeleteAdminCommand =>
     case cmd: GetAdminCommand =>
@@ -273,12 +288,37 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
       } else {
         replyTo ! Accepted("133", "wrong code")
         context.become(receive)
+        stopEntity()
       }
+    case cmd: VerifyEmailCommand =>
+      log.info(s"[waitingCode] Got VerifyEmailCommand: $cmd")
+      val replyTo = sender()
 
+      client.find(cmd.userId).onComplete {
+        case Success(usr) =>
+          val u = collectUser(usr)
+          u match {
+            case Some(user) =>
+              log.info(s"Got Success find user: $user")
+              val code = 1000 + Random.nextInt( (9999 - 1000) + 1 )
+              MailAgent.start(cmd.email, "kerbez2898@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
+              context.become(waitingCode(cmd.email, code.toString))
+              replyTo ! Accepted("201",
+                "Code sent")
+            case None =>
+          }
+        case Failure(exception) =>
+          log.info(s"Got Failure find exception: $exception")
+          replyTo ! TokenResponse(120, s"Got error when request db $exception")
+      }
     case ReceiveTimeout =>
       log.info("Got ReceiveTimeout while waiting code")
 //      context.become(receive)
-      context.stop(self)
+      stopEntity()
+  }
+
+  def stopEntity(): Unit = {
+    context.stop(self)
   }
 
   def collectUser(tuple: Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]): Option[User] = {
@@ -295,8 +335,8 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
     (tokenGenerate(mobile, password) == token)
   }
 
-  private def tokenGenerate(mobile: String, password: String): String = {
-    val claim     = JObject(("mobile", mobile), ("password", password))
+  private def tokenGenerate(nikName: String, password: String): String = {
+    val claim     = JObject(("nikName", nikName), ("password", password))
     val key       = "secretKey"
     val algorithm = JwtAlgorithm.HS256
     JwtJson4s.encode(claim, key, algorithm)

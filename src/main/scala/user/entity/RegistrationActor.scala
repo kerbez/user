@@ -1,6 +1,6 @@
 package user.entity
 
-import akka.actor.{Actor, ActorRef, Props}
+import akka.actor.{Actor, ActorRef, Props, ReceiveTimeout}
 import user.{Error, GeneralResponse, PostgresClient}
 import user.commands.RegistrationCommands.{CheckEmailCommand, CheckNikNameCommand, RegisterCommand}
 import user.commands.UserCommand.CreateClientCommand
@@ -10,6 +10,7 @@ import akka.event.{Logging, LoggingAdapter}
 
 import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Success}
+import scala.concurrent.duration._
 
 object RegistrationActor {
   def props(region: ActorRef, client: PostgresClient)(implicit executionContext: ExecutionContextExecutor): Props = Props(new RegistrationActor(region, client)(executionContext))
@@ -19,6 +20,7 @@ class RegistrationActor(region: ActorRef, client: PostgresClient)(implicit execu
 
   val log: LoggingAdapter = Logging(context.system, this)
 
+  context.setReceiveTimeout(60.seconds)
   override def receive: Receive = {
     case cmd: RegisterCommand =>
       val replyTo = sender()
@@ -78,6 +80,11 @@ class RegistrationActor(region: ActorRef, client: PostgresClient)(implicit execu
           replyTo ! Error("120", "Failed to request db, exception: " + ex.toString)
           context.stop(self)
       }
+
+    case ReceiveTimeout =>
+      log.info("Got ReceiveTimeout while waiting code")
+      //      context.become(receive)
+      context.stop(self)
   }
 
   def waitingEntity(replyTo: ActorRef): Receive = {

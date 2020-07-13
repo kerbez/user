@@ -24,6 +24,7 @@ trait JsonSupport extends SprayJsonSupport with DefaultJsonProtocol {
   implicit val getAdmin    = jsonFormat1(GetAdmin)
 
   implicit val tokenResponseFormat = jsonFormat3(TokenResponse)
+  implicit val generalResponseFormat = jsonFormat2(GeneralResponse)
   implicit val errorFormat = jsonFormat2(Error)
   implicit val clientInfoFormat = jsonFormat4(ClientInfo)
   implicit val acceptedFormat = jsonFormat2(Accepted)

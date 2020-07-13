@@ -60,7 +60,7 @@ class ClientActor(region: ActorRef, registrationActor: Props, client: PostgresCl
           }
 
         case cmd: GetClientToken =>
-          log.debug(s"Got GetClientToken: $cmd")
+          log.info(s"Got GetClientToken: $cmd")
           val replyTo = sender()
           if(checkToken(restWithHeader.header)) {
             client.findNikName(cmd.nikName).onComplete{
@@ -81,7 +81,7 @@ class ClientActor(region: ActorRef, registrationActor: Props, client: PostgresCl
           }
           else {
             log.debug(s"Got checkToken: false")
-            sender() ! Error("403", "Access denied")
+            replyTo ! Error("403", "Access denied")
           }
 
         case cmd: CheckClientToken =>
@@ -111,27 +111,43 @@ class ClientActor(region: ActorRef, registrationActor: Props, client: PostgresCl
 
         case cmd: Register =>
           log.debug(s"Got SendEmail: $cmd")
-          context.actorOf(registrationActor) ! RegisterCommand(cmd.nikName, cmd.password)
-          context.become(waitingResponse(sender()))
+          if(checkToken(restWithHeader.header)) {
+            context.actorOf(registrationActor) ! RegisterCommand(cmd.nikName, cmd.password)
+            context.become(waitingResponse(sender()))
+          } else {
+            log.debug(s"Got checkToken: false")
+            sender() ! Error("403", "Access denied")
+          }
 
         case cmd: CheckEmail =>
           log.debug(s"Got CheckEmail: $cmd")
-          context.actorOf(registrationActor) ! CheckEmailCommand(cmd.email)
-          context.become(waitingResponse(sender()))
+          if(checkToken(restWithHeader.header)) {
+            context.actorOf(registrationActor) ! CheckEmailCommand(cmd.email)
+            context.become(waitingResponse(sender()))
+          } else {
+            log.debug(s"Got checkToken: false")
+            sender() ! Error("403", "Access denied")
+          }
 
         case cmd: CheckNikName =>
           log.info(s"Got CheckNikName: $cmd")
-          context.actorOf(registrationActor) ! CheckNikNameCommand(cmd.nikName)
-          context.become(waitingResponse(sender()))
+          if(checkToken(restWithHeader.header)) {
+            context.actorOf(registrationActor) ! CheckNikNameCommand(cmd.nikName)
+            context.become(waitingResponse(sender()))
+          } else {
+            log.debug(s"Got checkToken: false")
+            sender() ! Error("403", "Access denied")
+          }
 
         case cmd: VerifyEmail =>
-          log.debug(s"Got VerifyEmail: $cmd")
+          log.info(s"Got VerifyEmail: $cmd")
           val replyTo = sender()
           val userId = getIdByToken(cmd.nikName, restWithHeader.header)
           userId.onComplete{
             case Success(usr) =>
+              log.info(s"got Id by token: $usr")
               region ! VerifyEmailCommand(usr, cmd.email)
-              context.become(waitingResponse(sender()))
+              context.become(waitingResponse(replyTo))
             case Failure(exception) =>
               replyTo ! Error("120", exception.getMessage)
           }
@@ -143,7 +159,7 @@ class ClientActor(region: ActorRef, registrationActor: Props, client: PostgresCl
           userId.onComplete{
             case Success(usr) =>
               region ! VerificationCodeCommand(usr, cmd.code)
-              context.become(waitingResponse(sender()))
+              context.become(waitingResponse(replyTo))
             case Failure(exception) =>
               replyTo ! Error("120", exception.getMessage)
           }
@@ -185,6 +201,7 @@ class ClientActor(region: ActorRef, registrationActor: Props, client: PostgresCl
 
   def waitingResponse(replyTo: ActorRef): Receive = {
     case a =>
+      log.info(s"ClientActor Got response: $a")
       replyTo ! a
   }
 

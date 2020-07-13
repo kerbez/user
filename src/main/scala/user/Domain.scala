@@ -26,7 +26,7 @@ final case class Error(code: String, message: String)
 final case class Accepted(code: String, message: String)
 final case class GeneralResponse(code: String, message: String)
 final case class User(userId: String,
-                       userName: String,
+                      nikName: String,
                        password: String,
                        email: Option[String],
                        rating: Int)

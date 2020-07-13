@@ -1,4 +1,4 @@
-name := "user"
+name := "habit_user"
 
 version := "1.0.0"
 
@@ -30,5 +30,5 @@ libraryDependencies ++= Seq(
 version in Docker := "latest"
 dockerExposedPorts in Docker := Seq(8100, 8101)
 //dockerRepository := Some("habit")
-dockerBaseImage := "nyarr"
+dockerBaseImage := "habit_user"
 enablePlugins(JavaAppPackaging)
