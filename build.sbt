@@ -4,7 +4,7 @@ version := "1.0.0"
 
 scalaVersion := "2.12.7"
 lazy val akkaManagementVersion = "1.0.0"
-lazy val akkaVersion              = "2.5.27" //"2.6.3"
+lazy val akkaVersion              = "2.5.22"//"2.6.3" //"2.5.27"
 lazy val akkaHttpJson4sVersion    = "1.25.2"
 
 libraryDependencies += "com.typesafe.akka" %% "akka-http"   % "10.1.11"
@@ -23,7 +23,9 @@ libraryDependencies ++= Seq(
   "com.github.tototoshi" %% "slick-joda-mapper" % "2.4.0",
   "com.outr"               %% "hasher"                  % "1.2.2",
   "com.pauldijou"          %% "jwt-json4s-jackson"      % "4.2.0",
-  "com.sun.mail" % "javax.mail" % "1.6.2"
+  "com.sun.mail" % "javax.mail" % "1.6.2",
+  "de.heikoseeberger" %% "akka-http-circe"      % "1.20.1",
+  "io.circe"          %% "circe-generic"        % "0.13.0",
 )
 
 

@@ -51,9 +51,9 @@ case class PostgresClient()(implicit session: SlickSession, executionContext: Ex
       .run((for (user <- users if user.nikName === nikName) yield user).result.headOption)
   }
 
-  def insert(id: String, nikname: String, password: String, rating: Int): Future[Int] =
+  def insert(id: String, nikname: String, password: String, email: Option[String], rating: Int): Future[Int] =
     databaseConfig.db
-      .run(users += (id, nikname, password, "", false, false, "", rating, ""))
+      .run(users += (id, nikname, password, email.getOrElse(""), false, false, "", rating, ""))
 
 //  def updateClient(id: String, nikName: Option[String], password: Option[String], email: Option[String], emailVerified: Option[Boolean], rating: Option[Int]): Future[Boolean] = {
 //    val query = for (user <- users if user.id === id)
@@ -66,6 +66,12 @@ case class PostgresClient()(implicit session: SlickSession, executionContext: Ex
       yield (user.email, user.emailVerified)
     databaseConfig.db.run(query.update(email, emailVerified)) map { _ > 0 }
 
+  }
+
+  def updateNikName(id: String, nikname: String): Future[Boolean] = {
+    val query = for (user <- users if user.id === id)
+      yield user.nikName
+    databaseConfig.db.run(query.update(nikname)) map { _ > 0 }
   }
 
   def updateName(id: String, name: String): Future[Boolean] = {

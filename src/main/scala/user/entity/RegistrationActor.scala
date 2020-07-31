@@ -24,18 +24,18 @@ class RegistrationActor(region: ActorRef, client: PostgresClient)(implicit execu
   override def receive: Receive = {
     case cmd: RegisterCommand =>
       val replyTo = sender()
-      check(cmd.nikName).onComplete {
+      checkEmail(cmd.email).onComplete {
         case Success(res) =>
           res match {
             case Some(user) =>
-              replyTo ! GeneralResponse("131", "nikName is unavailable")
+              replyTo ! GeneralResponse("132", "email is unavailable")
               context.stop(self)
 //            case (_, Some(user)) =>
 //              replyTo ! GeneralResponse("132", "email is unavailable")
 //              context.stop(self)
             case None =>
               val userId = randomUUID().toString
-              region ! CreateClientCommand(userId, cmd.nikName, cmd.password)
+              region ! CreateClientCommand(userId, userId, cmd.email, cmd.password)
               context.become(waitingEntity(replyTo))
           }
         case Failure(ex) =>
@@ -63,7 +63,7 @@ class RegistrationActor(region: ActorRef, client: PostgresClient)(implicit execu
     case cmd: CheckNikNameCommand =>
       log.info(s"RegistrationActor got cmd: $cmd")
       val replyTo = sender()
-      client.findNikName(cmd.nikName).onComplete {
+      checkNikName(cmd.nikName).onComplete {
         case Success(res) =>
           res match {
             case Some(user) =>
@@ -93,8 +93,15 @@ class RegistrationActor(region: ActorRef, client: PostgresClient)(implicit execu
       context.stop(self)
   }
 
+  def checkEmail(email: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
+    for {
+      res1 <- client.findEmail(email)
+    } yield {
+      res1
+    }
+  }
 
-  def check(nikName: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
+  def checkNikName(nikName: String): Future[Option[(String, String, String, String, Boolean, Boolean, String, Int, String)]] = {
     for {
       res1 <- client.findNikName(nikName)
     } yield {

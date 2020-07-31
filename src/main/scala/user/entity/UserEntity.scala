@@ -1,23 +1,23 @@
 package user.entity
 
-import akka.actor.{Actor, Props, ReceiveTimeout}
+import akka.actor.{Actor, ActorRef, Props, ReceiveTimeout}
 import akka.cluster.sharding.ShardRegion
 import akka.event.{Logging, LoggingAdapter}
 import akka.stream.Materializer
 import org.json4s._
 import pdi.jwt.{Jwt, JwtAlgorithm, JwtJson4s}
 import org.json4s.JsonDSL._
-import user.{Accepted, ClientInfo, Error, MailAgent, PostgresClient, RestWithHeader, TokenResponse, User}
+import user.{Accepted, ClientInfo, CodeSent, Error, GeneralResponse, MailAgent, PostgresClient, TokenResponse, User}
 import user.commands.UserCommand
 import user.commands.UserCommand._
 
-import scala.concurrent.ExecutionContextExecutor
+import scala.concurrent.{ExecutionContextExecutor, Future}
 import scala.util.{Failure, Random, Success}
 import scala.concurrent.duration._
 
 object UserEntity {
 
-  def props(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) = Props(new UserEntity(client: PostgresClient)(executionContext, materializer))
+  def props(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer): Props = Props(new UserEntity(client: PostgresClient)(executionContext, materializer))
 
   val idExtractor: ShardRegion.ExtractEntityId = {
     case cmd: UserCommand => (cmd.userId, cmd)
@@ -32,7 +32,6 @@ object UserEntity {
 }
 
 class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionContextExecutor, materializer: Materializer) extends Actor {
-  import UserEntity._
   val log: LoggingAdapter = Logging(context.system, this)
 
  context.setReceiveTimeout(600.seconds)
@@ -48,7 +47,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
             case Some(user) =>
               log.info(s"Got Success find user: $user")
               val code = 1000 + Random.nextInt( (9999 - 1000) + 1 )
-              MailAgent.start(cmd.email, "kerbez2898@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
+              MailAgent.start(cmd.email, "kerbezorazgaliyeva@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
               context.become(waitingCode(cmd.email, code.toString))
               replyTo ! Accepted("201",
                 "Code sent")
@@ -94,19 +93,26 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
       log.info(s"[init] Got CreateClientCommand: $cmd")
       val replyTo = sender()
 
-      val user = User(cmd.userId, cmd.nikName, cmd.password, None, 0)
+      val code = 1000 + Random.nextInt( (9999 - 1000) + 1 )
+      MailAgent.start(cmd.email, "kerbezorazgaliyeva@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
+      context.become(waitingCodeForRegistration(cmd.userId, cmd.nikName, cmd.email, cmd.password, code.toString, 3))
+      replyTo ! CodeSent(cmd.userId, "Code sent")
 
-      client.insert(user.userId, user.nikName, user.password, user.rating).onComplete {
-        case Success(cnt) =>
-          log.info(s"Got Success insert cnt: $cnt")
-          replyTo ! TokenResponse(201,
-            "User successfully created!",
-            Some(tokenGenerate(user.nikName, user.password)))
-          stopEntity()
+    case cmd: UpdateNikNameCodeCommand =>
+      log.info(s"[init] Got UpdateNikNameCodeCommand: $cmd")
+      val replyTo = sender()
+      client.updateNikName(cmd.userId, cmd.nikName).onComplete {
+        case Success(res) =>
+          if(res) {
+            log.info(s"Got Success update res: $res")
+            replyTo ! Accepted("200", "OK")
+          } else {
+            log.info(s"Failed to request db, got res: $res")
+            replyTo ! Error("120", "Failed to request db")
+          }
         case Failure(exception) =>
-          log.info(s"Got Failure insert exception: $exception")
-          replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
-          stopEntity()
+          log.info(s"Failed to request db, exception: ${exception.toString}")
+          replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
       }
 
 
@@ -127,42 +133,6 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
 //          replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
 //      }
 
-//    case cmd: UpdateClientCommand =>
-//      log.info(s"[init] Got UpdateClientCommand: $cmd")
-//      val replyTo = sender()
-//
-//      val user = User(cmd.userId, cmd.password, cmd.mobile, cmd.rating)
-//
-//      client.find(cmd.mobile).onComplete {
-//        case Success(found) =>
-//          found match {
-//            case Some(x) =>
-//              log.info(s"Got Success find value: $found")
-//              if(checkClientToken(x._1, x._3, cmd.token)){
-//                client.updateClient(cmd.userId, user.userName, user.password, user.rating).onComplete {
-//                  case Success(value) =>
-//                    if(value) {
-//                      log.info(s"Got Success update value: $value")
-//                      replyTo ! Accepted("200", "OK")
-//                    } else {
-//                      log.info(s"Got Success update value: $value")
-//                      replyTo ! Error("120", "Failed to request db")
-//                    }
-//                  case Failure(exception) =>
-//                    replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
-//                }
-//              }
-//              else{
-//                replyTo ! Error("403", "Access Denied")
-//              }
-//            case None =>
-//              log.info(s"Got Success to find value: $found")
-//              replyTo ! Error("110", "User does't exist")
-//          }
-//        case Failure(exception) =>
-//          log.info(s"Got Failure find exception: $exception")
-//          replyTo ! Error("120", "Failed to request db, exception: " + exception.toString)
-//      }
 
 //    case cmd: DeleteClientCommand =>
 //      log.info(s"[init] Got DeleteClientCommand: $cmd")
@@ -269,7 +239,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
     case cmd: VerificationCodeCommand =>
       val replyTo = sender()
       if(code == cmd.code) {
-        client.updateVerifiedEmail(cmd.userId, email, true).onComplete {
+        client.updateVerifiedEmail(cmd.userId, email, emailVerified = true).onComplete {
           case Success(value) =>
             if(value) {
               log.info(s"Got Success update value: $value")
@@ -301,7 +271,7 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
             case Some(user) =>
               log.info(s"Got Success find user: $user")
               val code = 1000 + Random.nextInt( (9999 - 1000) + 1 )
-              MailAgent.start(cmd.email, "kerbez2898@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
+              MailAgent.start(cmd.email, "kerbezorazgaliyeva@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
               context.become(waitingCode(cmd.email, code.toString))
               replyTo ! Accepted("201",
                 "Code sent")
@@ -317,6 +287,41 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
       stopEntity()
   }
 
+  def waitingCodeForRegistration(userId: String, nikName: String, email: String, password: String, code: String, cnt: Int): Receive = {
+    case cmd: VerificationCodeCommand =>
+      val replyTo = sender()
+      if(code == cmd.code) {
+        val user = User(userId, nikName, password, Some(email), 0)
+        checkThenInsertUser(user, replyTo)
+      } else {
+        if(cnt - 1 <= 0){
+          replyTo ! Accepted("133", s"wrong code, ${cnt - 1} tries left")
+          context.become(receive)
+          stopEntity()
+        } else {
+          replyTo ! Accepted("133", s"wrong code, ${cnt - 1} tries left")
+          context.become(waitingCodeForRegistration(userId, nikName, email, password, code, cnt-1))
+        }
+      }
+
+    case cmd: ResendEmailCodeCommand =>
+      log.info(s"[waitingCode] Got ResendEmailCodeCommand: $cmd")
+      val replyTo = sender()
+      val user = User(userId, nikName, password, Some(email), 0)
+      log.info(s"Got Success find user: $user")
+      val code = 1000 + Random.nextInt( (9999 - 1000) + 1 )
+      MailAgent.start(email, "kerbezorazgaliyeva@gmail.com", "Habit Tracker application email verification code", code.toString, "smtp.gmail.com").sendMessage()
+      context.become(waitingCodeForRegistration(userId, nikName, email, password, code.toString, 3))
+      replyTo ! Accepted("201",
+        "Code sent")
+
+
+    case ReceiveTimeout =>
+      log.info("Got ReceiveTimeout while waiting code")
+      //      context.become(receive)
+      stopEntity()
+  }
+
   def stopEntity(): Unit = {
     context.stop(self)
   }
@@ -328,11 +333,6 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
       case None =>
         None
     }
-  }
-
-  def checkClientToken(mobile: String, password: String, token: String): Boolean = {
-    println(tokenGenerate(mobile, password) + " != " + token)
-    (tokenGenerate(mobile, password) == token)
   }
 
   private def tokenGenerate(nikName: String, password: String): String = {
@@ -350,5 +350,50 @@ class UserEntity(client: PostgresClient)(implicit executionContext: ExecutionCon
     Jwt.decode(token, key, Seq(algorithm)).isSuccess
   }
 
+  def checkThenInsertUser(user: User, replyTo: ActorRef): Unit = {
+    user.email match {
+      case Some(email) =>
+        checkEmail(email).onComplete {
+          case Success(res) =>
+            if(!res) {
+              log.info(s"email is available")
+              insertClient(user, replyTo)
+            } else {
+              log.info(s"email is unavailable")
+              replyTo ! GeneralResponse("132", "email is unavailable")
+            }
+          case Failure(exception) =>
+            log.info(s"Got exception: $exception")
+            replyTo ! Error("120", s"$exception")
+        }
+      case None =>
+        log.info(s"creating user without email")
+        insertClient(user, replyTo)
+    }
+  }
+
+  def insertClient(user: User, replyTo: ActorRef): Unit = {
+    client.insert(user.userId, user.nikName, user.password, user.email, user.rating).onComplete {
+      case Success(cnt) =>
+        log.info(s"Got Success insert cnt: $cnt")
+        replyTo ! TokenResponse(201,
+          "User successfully created!",
+          Some(tokenGenerate(user.nikName, user.password)))
+        stopEntity()
+      case Failure(exception) =>
+        log.info(s"Got Failure insert exception: $exception")
+        replyTo ! TokenResponse(404, "User can not be created! " + exception.toString)
+        stopEntity()
+    }
+  }
+
+  def checkEmail(email: String): Future[Boolean] = {
+    for {
+      res1 <- client.findEmail(email)
+    } yield {
+      log.info(s"res1: ${res1}")
+      res1.isDefined
+    }
+  }
 
 }

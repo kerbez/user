@@ -1,21 +1,16 @@
 package user
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorSystem, Props}
 import akka.cluster.Cluster
 import akka.cluster.sharding.{ClusterSharding, ClusterShardingSettings}
 import akka.http.scaladsl.Http
-import akka.management.cluster.bootstrap.ClusterBootstrap
-import akka.management.scaladsl.AkkaManagement
 import akka.stream.alpakka.slick.scaladsl.SlickSession
 import slick.basic.DatabaseConfig
 import slick.jdbc.JdbcProfile
-import user.Boot.system
 import user.entity.RegistrationActor
-//import akka.http.scaladsl.model.{ContentTypes, HttpEntity}
-//import akka.management.cluster.bootstrap.ClusterBootstrap
-//import akka.management.scaladsl.AkkaManagement
 import akka.stream.ActorMaterializer
 import com.typesafe.config.{Config, ConfigFactory}
 import user.entity.UserEntity
@@ -23,18 +18,24 @@ import user.routes.{ClientActor, ClientRoutes}
 
 import scala.concurrent.duration.{Duration, FiniteDuration}
 import scala.concurrent.{Await, ExecutionContextExecutor, Promise}
-import scala.io.StdIn
 import scala.sys.ShutdownHookThread
 import scala.util.Try
-//import org.slf4j.{Logger, LoggerFactory}
 
 object Boot extends App with ClientRoutes{
 //  val log: Logger = LoggerFactory.getLogger("Boot")
 
-  val config = ConfigFactory.load()
+
+//  val config: Config = getConfig.resolve()
+//  val clusterName = "UserShardSystem"
+//  val host = "127.0.0.1"
+//  val port = 8100
+val appConfig =  com.typesafe.config.ConfigFactory.parseFile(new File("src/main/resources/application.conf")).resolve()
+
+  val config = ConfigFactory.load().withFallback(appConfig)
 //  val clusterName = "UserShardSystem"
 //  val host = "127.0.0.1"
 //  val port = 2551
+  println(s"config: $config")
   val clusterName = config.getString("clustering.cluster.name")
   val host = config.getString("clustering.ip")
   val port = config.getInt("clustering.port")
@@ -124,5 +125,88 @@ object Boot extends App with ClientRoutes{
 //          log.error("Error while leaving cluster: ex=" + e.getMessage)
       }
     }
+  }
+  def getConfig: Config = {
+    val a = """akka {
+              |  actor {
+              |    provider = "akka.cluster.ClusterActorRefProvider"
+              |  }
+              |
+              |  remote {
+              |    log-remote-lifecycle-events = off
+              |    enabled-transports = ["akka.remote.netty.tcp"]
+              |    netty.tcp {
+              |#      hostname = "127.0.0.1"
+              |#      port = 2551
+              |      hostname = ${clustering.ip}
+              |      port = ${clustering.port}
+              |;       post = 2551
+              |            # external (logical) port
+              |#       bind-port = 2551   # internal (bind) port
+              |    }
+              |  }
+              |
+              |  cluster {
+              |    roles = ["core"]
+              |    role {
+              |      core.min-nr-of-members = 1
+              |    }
+              |    sharding = {
+              |      role = "core"
+              |    }
+              |#    seed-nodes = ["akka.tcp://UserShardSystem@127.0.0.1:2551]
+              |    seed-nodes = ["akka.tcp://"${clustering.cluster.name}"@"${clustering.seed-ip}":"${clustering.seed-port}]
+              |    auto-down-unreachable-after = off
+              |
+              |    metrics.enabled = off
+              |    failure-detector.threshold = 10.0
+              |    failure-detector.acceptable-heartbeat-pause = 5s
+              |    downing-provider-class = com.ajjpj.simpleakkadowning.SimpleAkkaDowningProvider
+              |  }
+              |}
+              |
+              |slick-postgres {
+              |  profile = "slick.jdbc.PostgresProfile$"
+              |  db {
+              |    dataSourceClass = "slick.jdbc.DriverDataSource"
+              |    properties = {
+              |      driver = "org.postgresql.Driver"
+              |      url = "jdbc:postgresql://46.254.20.220:5431/habbit"
+              |      user = "admin"
+              |      password = "postgres"
+              |    }
+              |    minimumIdle = 10
+              |    maximumPoolSize = 20
+              |  }
+              |}
+              |
+              |akka-downing {
+              |  active-strategy = keep-majority
+              |  stable-after = 10s
+              |  down-removal-margin = 20s
+              |  keep-majority {
+              |    role = "core"
+              |  }
+              |}
+              |
+              |clustering {
+              | ip = "172.28.1.5"
+              | ip = ${?CLUSTER_IP}
+              | ip = "127.0.0.1"
+              |#  port = 8080
+              | port = 2551
+              |#  port = ${?CLUSTER_PORT}
+              | port = 8100
+              | seed-ip = "172.28.1.5"
+              | seed-ip = ${?CLUSTER_IP}
+              | seed-ip = "127.0.0.1"
+              | seed-ip = ${?SEED_PORT_1600_TCP_ADDR}
+              | seed-port = ${?SEED_PORT_1600_TCP_PORT}
+              |# seed-port = 2551
+              | seed-port = 8100
+              | cluster.name = "UserShardSystem"
+              |}
+              |""".stripMargin
+    ConfigFactory.parseString(a)
   }
 }

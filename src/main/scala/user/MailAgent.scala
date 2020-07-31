@@ -42,7 +42,7 @@ class MailAgent(to: String,
     props.put("mail.smtp.host", "smtp.gmail.com")
     props.put("mail.smtp.port", "587")
     val session = Session.getInstance(props, new Authenticator() {
-      override protected def getPasswordAuthentication = new PasswordAuthentication("kerbez2898@gmail.com", "44718SUpmE")
+      override protected def getPasswordAuthentication = new PasswordAuthentication("kerbezorazgaliyeva@gmail.com", "habittracker")
     })
     new MimeMessage(session)
   }

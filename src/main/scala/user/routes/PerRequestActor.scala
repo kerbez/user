@@ -2,19 +2,21 @@ package user.routes
 
 import java.util.UUID
 
+import de.heikoseeberger.akkahttpcirce.FailFastCirceSupport._
+import io.circe.generic.auto._
 import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{Actor, ActorRef, ActorSystem, OneForOneStrategy, Props, ReceiveTimeout, SupervisorStrategy}
 import akka.http.scaladsl.marshalling.ToResponseMarshallable
 import akka.http.scaladsl.model.StatusCodes._
 import akka.http.scaladsl.server.{RequestContext, RouteResult}
-import user.{Accepted, ClientInfo, Error, GeneralResponse, JsonSupport, RestMessage, RestWithHeader, TokenResponse}
+import user.{Accepted, ClientInfo, CodeSent, Error, GeneralResponse, RestWithHeader, TokenResponse}
 import spray.json._
 import user.routes.PerRequestActor.WithProps
 
 import scala.concurrent.Promise
 import scala.concurrent.duration._
 
-trait PerRequestActor extends Actor with JsonSupport {
+trait PerRequestActor extends Actor{
   import PerRequestActor._
   import context._
 
@@ -32,6 +34,7 @@ trait PerRequestActor extends Actor with JsonSupport {
     case generalResponse: GeneralResponse => complete(OK, generalResponse)
     case clientInfo: ClientInfo => complete(OK, clientInfo)
     case accepted: Accepted => complete(OK, accepted)
+    case codeSent: CodeSent => complete(OK, codeSent)
     case e: Error => complete(InternalServerError, e)
     case ReceiveTimeout => complete(GatewayTimeout, RequestTimeoutResponse)
   }

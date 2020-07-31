@@ -2,11 +2,12 @@ package user.routes
 
 import akka.actor.{ActorSystem, Props}
 import akka.http.scaladsl.server.{Route, RouteResult}
-import user.{JsonSupport, RestMessage, RestWithHeader}
+import akka.http.scaladsl.unmarshalling.PredefinedFromStringUnmarshallers
+import user.RestWithHeader
 
 import scala.concurrent.Promise
 
-trait BaseRoute extends PerRequestCreator with JsonSupport {
+trait BaseRoute extends PerRequestCreator with PredefinedFromStringUnmarshallers {
   def actorSys: ActorSystem
 
   def handleRequest(targetProps: Props, request: RestWithHeader): Route = ctx => {
