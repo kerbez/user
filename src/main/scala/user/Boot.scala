@@ -24,14 +24,13 @@ import scala.util.Try
 object Boot extends App with ClientRoutes{
 //  val log: Logger = LoggerFactory.getLogger("Boot")
 
-
-//  val config: Config = getConfig.resolve()
+  val config = ConfigFactory.load()
 //  val clusterName = "UserShardSystem"
 //  val host = "127.0.0.1"
 //  val port = 8100
-val appConfig =  com.typesafe.config.ConfigFactory.parseFile(new File("src/main/resources/application.conf")).resolve()
+//val appConfig =  com.typesafe.config.ConfigFactory.parseFile(new File("src/main/resources/application.conf")).resolve()
 
-  val config = ConfigFactory.load().withFallback(appConfig)
+//  val config = ConfigFactory.load().withFallback(appConfig)
 //  val clusterName = "UserShardSystem"
 //  val host = "127.0.0.1"
 //  val port = 2551
